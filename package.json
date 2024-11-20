@@ -1,0 +1,29 @@
+{
+  "name": "smartcool",
+  "version": "1.0.0",
+  "main": "expo/AppEntry.js",
+  "scripts": {
+    "start": "nodemon ./server/index.js",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "expo": "^52.0.7",
+    "expo-status-bar": "~1.12.1",
+    "nativewind": "^2.0.11",
+    "nodemon": "^3.1.2",
+    "react": "18.2.0",
+    "react-native": "0.74.1",
+    "react-native-heroicons": "^4.0.0",
+    "react-native-mqtt": "^0.1.0-beta4",
+    "react-native-svg": "^15.9.0",
+    "react-native-websocket": "^1.0.2",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0",
+    "tailwindcss": "^3.3.2"
+  },
+  "private": true
+}
