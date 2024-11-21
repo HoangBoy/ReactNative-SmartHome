@@ -22,6 +22,7 @@ import ModeApp from "../components/ModeApp";
 import ButtonSwitch from "../components/ButtonSwitch";
 import { useState } from "react";
 import WebSocket from "react-native-websocket";
+import { connectMQTT, subscribeTopic, publishMessage } from '../mqtt/mqttService';
 
 
 const SERVER_URL = "ws://192.168.1.2:8080";
