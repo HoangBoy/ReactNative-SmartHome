@@ -1,13 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { SafeAreaView, View, Text, Image, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { Platform, Dimensions } from 'react-native';
+import { SafeAreaView, View, Text, Image, TouchableOpacity, Alert, ScrollView, StyleSheet } from 'react-native';
 import { LightBulbIcon, ArrowDownCircleIcon, ArrowUpCircleIcon, Bars3CenterLeftIcon, BoltIcon } from 'react-native-heroicons/solid';
 import { storeColors } from '../theme';
 import SensorInfo from '../components/SensorInfo';
 import ModeApp from '../components/ModeApp';
 import ButtonSwitch from '../components/ButtonSwitch';
-import { connectMQTT, publishMessage, subscribeTopic } from './mqttService';
+import { connectMQTT, publishMessage, subscribeTopic, getMQTTClient  } from './mqttService';
+import { useNavigation } from '@react-navigation/native';
+
+const { width, height } = Dimensions.get('window');
+const isWeb = Platform.OS === 'web';  // Kiểm tra môi trường web
 
 const HomeScreen = () => {
+  const navigation = useNavigation();
+
   const [isSwitchEnableHeater, setIsSwitchEnableHeater] = useState(false);
   const [isSwitchEnableFan, setIsSwitchEnableFan] = useState(false);
   const [isSwitchEnableLed, setIsSwitchEnableLed] = useState(false);
@@ -18,6 +25,12 @@ const HomeScreen = () => {
     temperature: 0,
     humidity: 0,
   });
+  const handleLogout = async () => {
+    // Ngắt kết nối MQTT
+  
+    // Clear token, navigate về login
+    navigation.replace('LoginScreen');
+  };
 
   const handleMQTTMessage = (topic, message) => {
     if (topic === 'home/sensors/temperature_humidity') {
@@ -33,20 +46,20 @@ const HomeScreen = () => {
       }
     }
   };
-  
 
   useEffect(() => {
     connectMQTT();
-    // Đăng ký các chủ đề cần lắng nghe
     subscribeTopic('home/device/1/control');
     subscribeTopic('home/device/2/control');
     subscribeTopic('home/device/3/control');
     subscribeTopic('home/device/4/control');
-    subscribeTopic('home/sensors/temperature_humidity', handleMQTTMessage); // Đăng ký để nhận thông báo về nhiệt độ và độ ẩm
+    subscribeTopic('home/sensors/temperature_humidity', handleMQTTMessage);
 
     return () => {
-      // Nếu cần hủy đăng ký khi component bị hủy
-      mqttClient.unsubscribe('home/sensors/temperature_humidity');
+      const client = getMQTTClient();
+      if (client) {
+        client.unsubscribe('home/sensors/temperature_humidity');
+      }
     };
   }, []);
 
@@ -114,87 +127,101 @@ const HomeScreen = () => {
     publishMessage('home/device/3/control', message);
   };
 
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+      backgroundColor: '#fff',
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      marginBottom: 30,
+    },
+    logoutButton: {
+      backgroundColor: '#f44336',
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+      borderRadius: 10,
+      marginTop: 20,
+    },
+    buttonText: {
+      color: '#fff',
+      fontSize: 16,
+      fontWeight: 'bold',
+    },
+  }); 
+
   return (
-    <SafeAreaView>
-      <View className="p-4">
-        <View className="flex-row justify-between items-center">
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+      <View style={{ padding: 16, maxWidth: isWeb ? 1200 : width, alignSelf: 'center', flex: 1 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Bars3CenterLeftIcon size={25} color={storeColors.textBlack} />
-          <View className="flex-row justify-center items-center">
-            <Text>Smart Home</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
+            <Text style={{ fontSize: 20, fontWeight: 'bold' }}>Smart Home</Text>
             <ArrowDownCircleIcon size={15} color={storeColors.textBlack} />
           </View>
-          <TouchableOpacity onPress={() => Alert.alert('Go to Profile Screen')}>
-            <Image source={require('../assets/images/avatar.jpg')} className="w-8 h-8 rounded-full" />
-          </TouchableOpacity>
+         
+            <TouchableOpacity onPress={() => Alert.alert('Go to Profile Screen')}>
+              <Image source={require('../assets/images/avatar.jpg')} style={{ width: 40, height: 40, borderRadius: 20 }} />
+            </TouchableOpacity>
+        
         </View>
-      </View>
+        
+        <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+          <View style={{ marginTop: 16, marginHorizontal: 16 }}>
+            {/* Hiển thị Nhiệt độ và Độ ẩm */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 16 }}>
+              <SensorInfo
+                title="Nhiệt độ"
+                source={require('../assets/icons/temperature.png')}
+                value={sensorData.temperature || 'Chưa có dữ liệu'}
+              />
+              <SensorInfo
+                title="Độ ẩm"
+                source={require('../assets/icons/humidity.png')}
+                value={sensorData.humidity || 'Chưa có dữ liệu'}
+              />
+              <SensorInfo
+                title="Thời tiết"
+                source={require('../assets/icons/cloud.png')}
+                value={sensorData.weather || 'Có nắng'}
+              />
+            </View>
 
-      <ScrollView>
-        <View className="mt-4 mx-4">
-          <View className="flex-row item-center justify-between gap-2">
-            {/* Hiển thị nhiệt độ và độ ẩm */}
-            <SensorInfo 
-              title="Nhiệt độ" 
-              source={require('../assets/icons/temperature.png')} 
-              value={sensorData.temperature || 'Chưa có dữ liệu'}  // Nếu temperature không có giá trị thì hiển thị "Chưa có dữ liệu"
-            />
-            <SensorInfo 
-              title="Độ ẩm" 
-              source={require('../assets/icons/humidity.png')} 
-              value={sensorData.humidity || 'Chưa có dữ liệu'}  // Nếu humidity không có giá trị thì hiển thị "Chưa có dữ liệu"
-            />
-            <SensorInfo 
-              title="Thời tiết" 
-              source={require('../assets/icons/cloud.png')} 
-              value={sensorData.weather || 'Có nắng'}  // Nếu weather không có giá trị thì hiển thị "Chưa có dữ liệu"
-            />
-          </View>
-          {/* Các chức năng khác của ứng dụng */}
-          <View className="flex-row justify-between items-center flex-1 w-full mt-4">
-            <View className="my-2">
+            {/* Các chức năng điều khiển */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 }}>
               <ModeApp icon={<LightBulbIcon size={15} color={storeColors.textBlack} />} text="Light mode" onPress={() => Alert.alert('Chế độ sáng')} />
               <ModeApp icon={<LightBulbIcon size={15} color={storeColors.textBlack} />} text="Dark mode" onPress={() => Alert.alert('Chế độ tối')} />
             </View>
 
-            <View className="my-2">
-              <ModeApp 
-                icon={<ArrowUpCircleIcon size={20} color={storeColors.textBlack} />} 
-                text="Mở cửa nhà" 
-                onPress={openDoor} 
-              />
-              <ModeApp 
-                icon={<ArrowDownCircleIcon size={20} color={storeColors.textBlack} />} 
-                text="Đóng cửa nhà" 
-                onPress={closeDoor} 
-              />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 }}>
+              <ModeApp icon={<ArrowUpCircleIcon size={20} color={storeColors.textBlack} />} text="Mở cửa nhà" onPress={openDoor} />
+              <ModeApp icon={<ArrowDownCircleIcon size={20} color={storeColors.textBlack} />} text="Đóng cửa nhà" onPress={closeDoor} />
+            </View>
+
+            {/* Các button điều khiển thiết bị */}
+            <View style={{ marginTop: 20 }}>
+              <ButtonSwitch title="Quạt phòng ngủ" state={onFan} source={require('../assets/icons/fan.png')} value={isSwitchEnableFan} onValueChange={toggleSwitchFan} />
+              <ButtonSwitch title="Đèn phòng khách" state={onLed} source={require('../assets/icons/led.png')} value={isSwitchEnableLed} onValueChange={toggleSwitchLed} />
+              <ButtonSwitch title="Bình nóng lạnh" state={onHeater} source={require('../assets/icons/image.png')} value={isSwitchEnableHeater} onValueChange={toggleSwitchHeater} />
             </View>
           </View>
 
-          {/* Các button điều khiển thiết bị */}
-          <View>
-            <ButtonSwitch title="Quạt phòng ngủ" state={onFan} source={require('../assets/icons/fan.png')} value={isSwitchEnableFan} onValueChange={toggleSwitchFan} />
-            <ButtonSwitch title="Đèn phòng khách" state={onLed} source={require('../assets/icons/led.png')} value={isSwitchEnableLed} onValueChange={toggleSwitchLed} />
-            <ButtonSwitch title="Bình nóng lạnh" state={onHeater} source={require('../assets/icons/image.png')} value={isSwitchEnableHeater} onValueChange={toggleSwitchHeater} />
+          {/* Thông tin thiết kế */}
+          <View style={{ marginTop: 40, alignItems: 'center' }}>
+            <Text style={{ fontSize: 14, color: '#666' }}>Cre Việt Hoàng</Text>
           </View>
-        </View>
-
-        <View>
-          <Text className="">Design by Việt Hoàng</Text>
-          <Text className=""></Text>
-          <Text className=""></Text>
-          <Text className=""></Text>
-          <Text className=""></Text>
-          <Text className=""></Text>
-          <Text className=""></Text>
-          <Text className=""></Text>
-         
-          
-
-
-        </View>
-      </ScrollView>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <Text style={styles.buttonText}>Đăng Xuất</Text>
+      </TouchableOpacity>
+        </ScrollView>
+      </View>
     </SafeAreaView>
   );
 };
+
 
 export default HomeScreen;

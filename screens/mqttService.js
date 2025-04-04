@@ -75,3 +75,5 @@ export const disconnectMQTT = () => {
     console.log('Disconnected from MQTT Broker');
   }
 };
+// Export client getter
+export const getMQTTClient = () => client;
